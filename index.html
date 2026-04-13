@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Galerie Foto</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0; padding: 10px; background: #f4f4f7; color: #000;
+            user-select: none; -webkit-user-select: none;
+        }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .card { 
+            background: #fff; border-radius: 10px; overflow: hidden; 
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1); position: relative;
+        }
+        .img-wrapper { position: relative; width: 100%; padding-top: 130%; background: #eee; }
+        img { 
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+            object-fit: cover; pointer-events: none; 
+        }
+        /* Прозрачный слой поверх фото */
+        .guard { 
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+            z-index: 10; cursor: default;
+        }
+        .watermark {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg);
+            color: rgba(255,255,255,0.3); font-size: 12px; font-weight: bold;
+            z-index: 5; pointer-events: none; white-space: nowrap;
+        }
+        .info { padding: 8px; text-align: center; }
+        .num { font-weight: bold; font-size: 14px; }
+        .selector { width: 100%; margin-top: 5px; padding: 5px; border-radius: 5px; border: 1px solid #ddd; }
+        .btn-add { 
+            width: 100%; background: #248bed; color: #fff; border: none; 
+            padding: 8px; margin-top: 8px; border-radius: 5px; font-weight: bold;
+        }
+    </style>
+</head>
+<body oncontextmenu="return false;">
+
+    <div class="grid" id="gallery"></div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+        tg.MainButton.setText("CONFIRMĂ SELECȚIA");
+        tg.MainButton.show();
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const sadik = urlParams.get('sadik') || 'test';
+        const group = urlParams.get('group') || 'test';
+
+        let cart = {};
+
+        // Для теста: предположим, в группе 10 фото. 
+        // В будущем мы можем сделать этот список динамическим.
+        const photoCount = 10; 
+        const gallery = document.getElementById('gallery');
+
+        for (let i = 1; i <= photoCount; i++) {
+            const photoId = i.toString().padStart(4, '0');
+            // Ссылка на фото в твоем Firebase
+            // ВАЖНО: Тебе нужно будет заменить 'ТВОЙ_ПРОЕКТ' на реальное ID из Firebase
+            const photoUrl = `https://firebasestorage.googleapis.com/v0/b/ТВОЙ_ПРОЕКТ.appspot.com/o/photos%2F${sadik}%2F${group}%2F${photoId}.jpg?alt=media`;
+
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.innerHTML = `
+                <div class="img-wrapper">
+                    <img src="${photoUrl}" loading="lazy">
+                    <div class="watermark">PROBĂ / PREVIEW</div>
+                    <div class="guard"></div>
+                </div>
+                <div class="info">
+                    <span class="num">№ ${photoId}</span>
+                    <select class="selector" id="fmt-${photoId}">
+                        <option value="10x15">10x15 - 16 MDL</option>
+                        <option value="15x21">15x21 - 30 MDL</option>
+                        <option value="Digital">Digital - 14 MDL</option>
+                    </select>
+                    <button class="btn-add" onclick="add('${photoId}')">Adaugă</button>
+                </div>
+            `;
+            gallery.appendChild(card);
+        }
+
+        function add(id) {
+            const fmt = document.getElementById(`fmt-${id}`).value;
+            if (!cart[fmt]) cart[fmt] = "";
+            // Формируем строку вида "0001 0005" как в твоем боте
+            cart[fmt] += (cart[fmt] ? " " : "") + id;
+            tg.HapticFeedback.notificationOccurred('success');
+        }
+
+        tg.onEvent('mainButtonClicked', function() {
+            // Отправляем данные обратно в бот
+            tg.sendData(JSON.stringify(cart));
+        });
+    </script>
+</body>
+</html>
