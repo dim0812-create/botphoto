@@ -3,101 +3,208 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Galerie Foto</title>
+    <title>Galerie Foto - Comanda</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        body { 
+        :root {
+            --tg-theme-bg-color: #f4f4f7;
+            --tg-theme-text-color: #000;
+            --tg-theme-button-color: #248bed;
+            --tg-theme-button-text-color: #ffffff;
+        }
+        body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            margin: 0; padding: 10px; background: #f4f4f7; color: #000;
+            margin: 0; padding: 10px;
+            background-color: var(--tg-theme-bg-color);
+            color: var(--tg-theme-text-color);
             user-select: none; -webkit-user-select: none;
         }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .card { 
-            background: #fff; border-radius: 10px; overflow: hidden; 
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1); position: relative;
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            padding-bottom: 80px;
         }
-        .img-wrapper { position: relative; width: 100%; padding-top: 130%; background: #eee; }
-        img { 
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
-            object-fit: cover; pointer-events: none; 
+        .card {
+            background: #fff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            position: relative;
+            display: flex;
+            flex-direction: column;
         }
-        /* Прозрачный слой поверх фото */
-        .guard { 
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
-            z-index: 10; cursor: default;
+        .img-container {
+            position: relative;
+            width: 100%;
+            padding-top: 130%; /* Пропорции фото */
+            background: #eee;
+        }
+        img {
+            position: absolute; top: 0; left: 0;
+            width: 100%; height: 100%;
+            object-fit: cover;
+            pointer-events: none;
+        }
+        /* Защитный слой */
+        .guard {
+            position: absolute; top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 10;
         }
         .watermark {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg);
-            color: rgba(255,255,255,0.3); font-size: 12px; font-weight: bold;
-            z-index: 5; pointer-events: none; white-space: nowrap;
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%) rotate(-45deg);
+            color: rgba(255,255,255,0.3);
+            font-size: 14px; font-weight: bold;
+            z-index: 5; pointer-events: none;
+            white-space: nowrap;
         }
-        .info { padding: 8px; text-align: center; }
-        .num { font-weight: bold; font-size: 14px; }
-        .selector { width: 100%; margin-top: 5px; padding: 5px; border-radius: 5px; border: 1px solid #ddd; }
-        .btn-add { 
-            width: 100%; background: #248bed; color: #fff; border: none; 
-            padding: 8px; margin-top: 8px; border-radius: 5px; font-weight: bold;
+        .controls {
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .photo-num {
+            font-size: 14px; font-weight: bold;
+            text-align: center; margin-bottom: 4px;
+        }
+        select, input {
+            padding: 6px;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+            font-size: 14px;
+            outline: none;
+        }
+        .btn-add {
+            background: var(--tg-theme-button-color);
+            color: var(--tg-theme-button-text-color);
+            border: none;
+            padding: 8px;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .btn-add:active { opacity: 0.7; }
+        
+        .counter {
+            background: #e1f0ff;
+            color: #007bff;
+            font-size: 12px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            position: absolute;
+            top: 5px; right: 5px;
+            z-index: 15;
+            display: none;
         }
     </style>
 </head>
 <body oncontextmenu="return false;">
 
-    <div class="grid" id="gallery"></div>
+    <div id="gallery" class="grid">
+        </div>
 
     <script>
         const tg = window.Telegram.WebApp;
         tg.expand();
-        tg.MainButton.setText("CONFIRMĂ SELECȚIA");
+        tg.MainButton.setText("CONFIRMĂ COMANDA");
         tg.MainButton.show();
 
+        // Читаем параметры из ссылки (sadik и group)
         const urlParams = new URLSearchParams(window.location.search);
-        const sadik = urlParams.get('sadik') || 'test';
-        const group = urlParams.get('group') || 'test';
+        const sadik = urlParams.get('sadik') || '145';
+        const group = urlParams.get('group') || 'Grupa 1';
 
-        let cart = {};
+        // Список форматов (как в твоем PRICES)
+        const formats = [
+            '10x15', '15x21', '21x30', '30x45', 
+            'Magnet 7x10', 'Magnet 10x15', 'Magnet 15x21', 
+            'Set 10x15+digi', 'Fotocarte', 'Digital', 'Tablou 40x60'
+        ];
 
-        // Для теста: предположим, в группе 10 фото. 
-        // В будущем мы можем сделать этот список динамическим.
-        const photoCount = 10; 
+        let cart = {}; // Структура: { "10x15": "0001*2 0005", "Digital": "0001" }
+
         const gallery = document.getElementById('gallery');
 
-        for (let i = 1; i <= photoCount; i++) {
+        // Создаем галерею (например на 100 фото, пустые не загрузятся)
+        // Для профессионального подхода лучше передавать точное количество через URL
+        const maxPhotos = 50; 
+
+        for (let i = 1; i <= maxPhotos; i++) {
             const photoId = i.toString().padStart(4, '0');
-            // Ссылка на фото в твоем Firebase
-            // ВАЖНО: Тебе нужно будет заменить 'ТВОЙ_ПРОЕКТ' на реальное ID из Firebase
-           const photoUrl = `https://firebasestorage.googleapis.com/v0/b/photo-bot-client.firebasestorage.app/o/photos%2F${sadik}%2F${group}%2F${photoId}.jpg?alt=media`;
+            // Кодируем путь для Firebase (пробелы заменяются на %20 автоматически)
+            const path = `Photos/${sadik}/${group}/${photoId}.jpg`;
+            const encodedPath = encodeURIComponent(path);
+            const photoUrl = `https://firebasestorage.googleapis.com/v0/b/photo-bot-client.firebasestorage.app/o/${encodedPath}?alt=media`;
+
             const card = document.createElement('div');
             card.className = 'card';
+            card.id = `card-${photoId}`;
             card.innerHTML = `
-                <div class="img-wrapper">
-                    <img src="${photoUrl}" loading="lazy">
-                    <div class="watermark">PROBĂ / PREVIEW</div>
+                <div class="img-container">
+                    <img src="${photoUrl}" onerror="this.parentElement.parentElement.style.display='none'">
+                    <div class="watermark">PREVIEW</div>
                     <div class="guard"></div>
+                    <div class="counter" id="cnt-${photoId}"></div>
                 </div>
-                <div class="info">
-                    <span class="num">№ ${photoId}</span>
-                    <select class="selector" id="fmt-${photoId}">
-                        <option value="10x15">10x15 - 16 MDL</option>
-                        <option value="15x21">15x21 - 30 MDL</option>
-                        <option value="Digital">Digital - 14 MDL</option>
+                <div class="controls">
+                    <span class="photo-num">№ ${photoId}</span>
+                    <select id="fmt-${photoId}">
+                        ${formats.map(f => `<option value="${f}">${f}</option>`).join('')}
                     </select>
-                    <button class="btn-add" onclick="add('${photoId}')">Adaugă</button>
+                    <input type="number" id="qty-${photoId}" value="1" min="1" style="width: 40px; align-self: center; text-align: center;">
+                    <button class="btn-add" onclick="addToCart('${photoId}')">Adaugă</button>
                 </div>
             `;
             gallery.appendChild(card);
         }
 
-        function add(id) {
+        function addToCart(id) {
             const fmt = document.getElementById(`fmt-${id}`).value;
-            if (!cart[fmt]) cart[fmt] = "";
-            // Формируем строку вида "0001 0005" как в твоем боте
-            cart[fmt] += (cart[fmt] ? " " : "") + id;
+            const qty = parseInt(document.getElementById(`qty-${id}`).value) || 1;
+
+            if (!cart[fmt]) cart[fmt] = {};
+            
+            // Если Digital или Set - ставим количество 1 (как в твоем коде)
+            const isSingle = (fmt === 'Digital' || fmt === 'Set 10x15+digi');
+            const finalQty = isSingle ? 1 : qty;
+
+            // Сохраняем во временный объект для удобства подсчета
+            if (!cart[fmt][id]) cart[fmt][id] = 0;
+            cart[fmt][id] += finalQty;
+
+            // Показываем индикатор на фото
+            const cnt = document.getElementById(`cnt-${id}`);
+            cnt.innerText = "✓ Adăugat";
+            cnt.style.display = "block";
+
             tg.HapticFeedback.notificationOccurred('success');
         }
 
+        // При нажатии на главную кнопку внизу Телеграма
         tg.onEvent('mainButtonClicked', function() {
-            // Отправляем данные обратно в бот
-            tg.sendData(JSON.stringify(cart));
+            // Преобразуем объект заказа в строки, которые понимает твой Python скрипт
+            // Формат: { "10x15": "0001*2 0005", "Digital": "0010" }
+            let finalOutput = {};
+
+            for (const [fmt, photos] of Object.entries(cart)) {
+                let parts = [];
+                for (const [id, q] of Object.entries(photos)) {
+                    parts.push(q > 1 ? `${id}*${q}` : id);
+                }
+                finalOutput[fmt] = parts.join(' ');
+            }
+
+            if (Object.keys(finalOutput).length === 0) {
+                tg.showAlert("Vă rugăm să alegeți cel puțin o fotografie!");
+                return;
+            }
+
+            // Отправляем данные боту
+            tg.sendData(JSON.stringify(finalOutput));
         });
     </script>
 </body>
