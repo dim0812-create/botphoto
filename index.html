@@ -65,7 +65,7 @@
             const photoId = i.toString().padStart(4, '0');
             // Ссылка на фото в твоем Firebase
             // ВАЖНО: Тебе нужно будет заменить 'ТВОЙ_ПРОЕКТ' на реальное ID из Firebase
-            const photoUrl = `https://firebasestorage.googleapis.com/v0/b/photo-bot-client.firebasestorage.app/o/photos%2F${sadik}%2F${group}%2F${photoId}.jpg?alt=media`;
+           const photoUrl = `https://firebasestorage.googleapis.com/v0/b/photo-bot-client.firebasestorage.app/o/photos%2F${sadik}%2F${group}%2F${photoId}.jpg?alt=media`;
             const card = document.createElement('div');
             card.className = 'card';
             card.innerHTML = `
